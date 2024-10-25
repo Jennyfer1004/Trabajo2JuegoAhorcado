@@ -1,0 +1,421 @@
+﻿Creación base de datos SURTIFRUVER
+
+
+
+
+CREATE TABLE proveedores(
+Id_proveedores INT PRIMARY KEY,
+Nombre VARCHAR(30) NOT NULL,
+Telefono VARCHAR(11),
+Direccion VARCHAR(10),
+Estado VARCHAR(5)
+);
+
+
+—------------------------------------------------------------------------------------------------------------------------
+Creacion:
+CREATE TABLE ventas(
+Id_venta INT PRIMARY KEY,
+Fecha DATE NOT NULL,
+Estado VARCHAR(10) NOT NULL
+);
+
+
+—------------------------------------------------------------------------------------------------------------------------
+CREATE TABLE categoria(
+Id_categoria INT PRIMARY KEY,
+Categoria VARCHAR(10) NOT NULL,
+Estado VARCHAR(10) NOT NULL
+);
+—-----------------------------------------------------------------------------------------------------------------------
+CREATE TABLE productos(
+Codigo_producto INT PRIMARY KEY,
+Nombre VARCHAR(30) NOT NULL,
+Precio_libra VARCHAR(11) NOT NULL,
+Estado VARCHAR(10) NOT NULL,
+Id_categoria INT NOT NULL,
+CONSTRAINT fk_categoria FOREIGN KEY(Id_categoria) REFERENCES categoria (Id_categoria)
+);
+—----------------------------------------------------------------------------------------------------------------------
+CREATE TABLE lote(
+Id_lote INT PRIMARY KEY,
+Fecha_Llegada DATE NOT NULL,
+Estado_lote VARCHAR(15) NOT NULL,
+Fecha_caducidad DATE NOT NULL,
+Peso VARCHAR(11) NOT NULL,
+Precio VARCHAR (11) NOT NULL,
+Estado VARCHAR(10)NOT NULL,
+Id_proveedores INT NOT NULL,
+CONSTRAINT fk_proveedores FOREIGN KEY(Id_proveedores)REFERENCES proveedores (Id_proveedores),
+Codigo_producto INT NOT NULL,
+CONSTRAINT fk_productos FOREIGN KEY(Codigo_producto) REFERENCES productos (Codigo_producto)
+);
+—------------------------------------------------------------------------------------------------------------------------
+CREATE TABLE lote_ventas (
+    Id_Lote_ventas INT PRIMARY KEY,
+    Id_lote INT NOT NULL,
+    Id_venta INT NOT NULL,
+    Cantidad_Peso VARCHAR(11) NOT NULL,
+    CONSTRAINT fk_lote FOREIGN KEY(Id_lote) REFERENCES lote(Id_lote),
+    CONSTRAINT fk_venta FOREIGN KEY(Id_venta) REFERENCES ventas(Id_venta)
+);
+—---------------------------------------------------------------------------------------------------------------
+Inserción de Datos:
+
+
+INSERT PROVEEDORES
+INSERT into proveedores (Id_proveedores, Nombre, Telefono, Direccion, Estado) 
+VALUES (1, 'dani', '123456', 'calle 1', 'activo');
+
+
+INSERT VENTAS
+INSERT INTO ventas (Id_venta, Fecha, Estado)
+VALUES
+(1, '2024-10-01', 'Completado'),
+(2, '2024-10-05', 'Pendiente'),
+(3, '2024-10-07', 'Cancelado'),
+(4, '2024-10-08', 'Completado'),
+(5, '2024-10-09', 'Pendiente');
+
+
+INSERT CATEGORIA
+INSERT INTO categoria (Id_categoria, Categoria, Estado)
+VALUES
+(1, 'Frutas', 'Activo'),
+(2, 'Verduras', 'Activo');
+
+
+INSERT PRODUCTOS
+INSERT INTO productos (Codigo_producto, Nombre, Precio_libra, Estado, Id_categoria)
+VALUES
+(1, 'Manzana', '2.50', 'Activo', 1),   -- Frutas (Id_categoria = 1)
+(2, 'Banano', '1.80', 'Activo', 1),    -- Frutas (Id_categoria = 1)
+(3, 'Zanahoria', '1.20', 'Activo', 2), -- Verduras (Id_categoria = 2)
+(4, 'Lechuga', '1.00', 'Activo', 2);   -- Verduras (Id_categoria = 2)
+
+
+
+
+INSERT LOTE
+INSERT INTO lote (Id_lote, Fecha_Llegada, Estado_lote, Fecha_caducidad, Peso, Precio, Estado, Id_proveedores, Codigo_producto)
+VALUES
+(1, '2024-10-01', 'Despachado', '2025-01-01', '50 lb', '125.00', 'Activo', 1, 1),  -- Proveedor: Dani, Producto: Manzana
+(2, '2024-10-02', 'Entregado', '2025-02-01', '30 lb', '54.00', 'Activo', 1, 2),   -- Proveedor: Dani, Producto: Banano
+(3, '2024-10-03', 'Despachado', '2025-03-01', '40 lb', '48.00', 'Activo', 1, 3),   -- Proveedor: Dani, Producto: Zanahoria
+(4, '2024-10-04', 'Entregado', '2025-04-01', '20 lb', '20.00', 'Activo', 1, 4);   -- Proveedor: Dani, Producto: Lechuga
+
+
+INSERT INTO lote_ventas (Id_Lote_ventas, Id_lote, Id_venta, Cantidad_Peso)
+VALUES
+(1, 1, 1, '25 lb'),  -- Lote 1, Venta 1, 25 libras
+(2, 2, 2, '15 lb'),  -- Lote 2, Venta 2, 15 libras
+(3, 3, 1, '10 lb');  -- Lote 3, Venta 1, 10 libras
+_________________________________________________________________________
+
+
+PROCEDIMIENTOS Y FUNCIONES
+
+
+PROVEEDORES:
+        INSERTAR
+CREATE OR REPLACE PROCEDURE insertar_proveedor(
+    _nombre_empresa VARCHAR, 
+    _telefono VARCHAR, 
+    _direccion VARCHAR, 
+    _estado VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO proveedores (Nombre_empresa, Telefono, Direccion, Estado)
+    VALUES (_nombre_empresa, _telefono, _direccion, _estado);
+END;
+$$;
+
+
+        MODIFICAR
+CREATE OR REPLACE PROCEDURE modificar_proveedor( 
+    _nombre_empresa VARCHAR, 
+    _telefono VARCHAR, 
+    _direccion VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE proveedores
+    SET Telefono = _telefono,
+        Direccion = _direccion
+    WHERE nombre_empresa = _nombre_empresa;
+    
+    -- Verificar si algún registro fue actualizado
+    IF NOT FOUND THEN
+        RAISE NOTICE 'No se encontró ningún proveedor con el nombre %', _nombre_empresa;
+    END IF;
+END;
+$$;
+        
+        ELIMINAR
+
+
+CREATE OR REPLACE PROCEDURE eliminar_proveedor(
+    p_nombre_empresa VARCHAR,
+    p_estado VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE proveedores
+    SET Estado = p_estado
+    WHERE nombre_empresa = p_nombre_empresa;
+
+
+EXCEPTION
+    WHEN OTHERS THEN 
+        RAISE NOTICE 'Error al cambiar el estado del proveedor: %', SQLERRM;
+END;
+$$;
+
+
+        VER
+CREATE OR REPLACE FUNCTION buscar_proveedor(_nombre_empresa_input VARCHAR)
+RETURNS TABLE (
+    id_proveedores INT,
+    nombre_empresa VARCHAR,
+        telefono VARCHAR,
+        direccion VARCHAR,
+    estado VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT p.id_proveedores, p.nombre_empresa, p.telefono, p.direccion, p.estado
+    FROM proveedores p
+    WHERE p.nombre_empresa = _nombre_empresa_input
+    AND p.estado = 'activo';
+END;
+$$;
+
+
+CATEGORIA
+        INSERTAR
+CREATE OR REPLACE PROCEDURE insertar_categoria(
+    _categoria VARCHAR,
+    _estado VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO categoria (Categoria, Estado)
+    VALUES (_categoria, _estado);
+END;
+$$;
+
+
+        ELIMINAR
+CREATE OR REPLACE PROCEDURE eliminar_categoria(
+    p_categoria TEXT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+       UPDATE categoria
+    SET Estado = 'inactivo'
+    WHERE categoria = p_categoria AND Estado = 'Activo';
+    IF NOT FOUND THEN
+        RAISE NOTICE 'La categoría con nombre % no está activa o no existe.', p_categoria;
+    END IF;
+END;
+$$;
+
+
+        VER
+CREATE OR REPLACE FUNCTION buscar_categoria(_categoria_input VARCHAR)
+RETURNS TABLE (
+    id_categoria INT,
+    categoria VARCHAR,
+    estado VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT c.Id_categoria, c.Categoria, c.Estado
+    FROM categoria c
+    WHERE UPPER(c.Categoria) LIKE UPPER(_categoria_input || '%');
+END;
+$$;
+PRODUCTO
+        INSERTAR
+REATE OR REPLACE PROCEDURE insertar_producto(
+    _codigo_producto INT,
+    _nombre_producto VARCHAR,
+    _precio_libra VARCHAR,
+    _estado VARCHAR,
+    _categoria VARCHAR )
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    _id_categoria INT;
+BEGIN
+      SELECT Id_categoria INTO _id_categoria
+    FROM categoria
+    WHERE UPPER(Categoria) = UPPER(_categoria); 
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'La categoría % no existe', _categoria;
+    END IF;
+    INSERT INTO productos (Codigo_producto, Nombre, Precio_libra, Estado, Id_categoria)
+    VALUES (_codigo_producto, _nombre_producto, _precio_libra, _estado, _id_categoria);
+
+
+    COMMIT;
+END;
+$$;
+
+
+        MODIFICAR
+CREATE OR REPLACE PROCEDURE modificar_producto(
+    _codigo_producto INT,
+    _nombre_producto VARCHAR,
+    _precio_libra VARCHAR,
+    _categoria_nombre VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    _id_categoria INT;
+BEGIN
+    SELECT id_categoria INTO _id_categoria
+    FROM categoria
+    WHERE categoria = _categoria_nombre;
+    IF _id_categoria IS NULL THEN
+        RAISE EXCEPTION 'La categoría % no existe', _categoria_nombre;
+    END IF;
+    UPDATE productos
+    SET nombre = _nombre_producto,
+        precio_libra = _precio_libra,
+        id_categoria = _id_categoria
+    WHERE codigo_producto = _codigo_producto;
+
+
+    RAISE NOTICE 'Producto con código % actualizado con éxito', _codigo_producto;
+
+
+END;
+$$;
+
+
+ELIMINAR        
+CREATE OR REPLACE PROCEDURE eliminar_producto(
+    _codigo_producto INT,
+    _nombre_producto VARCHAR,
+    _nuevo_estado VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF _codigo_producto IS NOT NULL THEN
+        UPDATE productos
+        SET estado = _nuevo_estado
+        WHERE codigo_producto = _codigo_producto;
+    
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'No se encontró el producto con código %', _codigo_producto;
+        END IF;
+    ELSIF _nombre_producto IS NOT NULL THEN
+        UPDATE productos
+        SET estado = _nuevo_estado
+        WHERE nombre = _nombre_producto;
+    
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'No se encontró el producto con nombre %', _nombre_producto;
+        END IF;
+
+
+    ELSE
+        RAISE EXCEPTION 'Debes proporcionar un código o un nombre de producto';
+    END IF;
+
+
+    RAISE NOTICE 'Estado del producto actualizado a %', _nuevo_estado;
+
+
+END;
+$$;
+
+
+        VER
+CREATE OR REPLACE FUNCTION buscar_productos(
+    _nombre_categoria VARCHAR DEFAULT NULL,
+    _nombre_producto VARCHAR DEFAULT NULL
+)
+RETURNS TABLE (
+    codigo_producto INT,
+    nombre VARCHAR,
+    precio_libra VARCHAR,
+    estado VARCHAR,
+    id_categoria INT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT p.codigo_producto, p.nombre, p.precio_libra, p.estado, p.id_categoria
+    FROM productos p
+    JOIN categoria c ON p.id_categoria = c.id_categoria
+    WHERE 
+        (UPPER(c.categoria) = UPPER(_nombre_categoria) OR _nombre_categoria IS NULL)
+        AND (UPPER(p.nombre) LIKE UPPER(_nombre_producto || '%') OR _nombre_producto IS NULL);
+END;
+$$;
+
+
+
+
+VENTAS
+        INSERTAR
+CREATE OR REPLACE PROCEDURE insertar_venta(
+    _fecha DATE
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO ventas (Fecha, Estado)
+    VALUES (
+        _fecha,  
+        'activo' 
+    );
+END;
+$$;
+
+
+MODIFICAR
+CREATE OR REPLACE PROCEDURE modificar_ventas(nueva_fecha DATE)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE ventas
+    SET Fecha = nueva_fecha
+    WHERE Fecha = CURRENT_DATE;  -- Solo actualiza las ventas de la fecha actual
+END;
+$$;
+
+
+ELIMINAR
+
+
+CREATE OR REPLACE PROCEDURE eliminar_venta(
+    p_id_venta INT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE ventas
+    SET Estado = 'inactivo'
+    WHERE Id_venta = p_id_venta AND Estado = 'activo';
+
+
+    IF NOT FOUND THEN
+        RAISE NOTICE 'La venta con ID % no está activa o no existe.', p_id_venta;
+    END IF;
+END;
+$$;
